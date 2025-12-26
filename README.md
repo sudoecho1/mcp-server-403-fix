@@ -1,5 +1,7 @@
 # Burp Suite MCP Server Extension
 
+> **Custom Fork**: This is a fork of the official PortSwigger mcp-server with fixes for external access support. See [External Access Fix](#external-access-fix) below.
+
 ## Overview
 
 Integrate Burp Suite with AI Clients using the Model Context Protocol (MCP).
@@ -11,6 +13,7 @@ For more information about the protocol visit: [modelcontextprotocol.io](https:/
 - Connect Burp Suite to AI clients through MCP
 - Automatic installation for Claude Desktop
 - Comes with packaged Stdio MCP proxy server
+- **[NEW]** Support for external connections from remote clients
 
 ## Usage
 
@@ -139,5 +142,48 @@ data class with the required parameters which will come from the LLM.
 
 The tool name is auto-derived from its parameters data class. A description is also needed for the LLM. You can return
 a string (or richer PromptMessageContents) to provide data back to the LLM.
+
+## External Access Fix
+
+This fork includes fixes to enable external connections from remote machines, which the original version blocks via DNS rebinding security validation.
+
+### Changes Made
+
+1. **SDK Version Downgrade** (`gradle/libs.versions.toml`)
+   - Changed: `mcp-sdk = "0.7.4"` → `mcp-sdk = "0.5.0"`
+   - Reason: Protocol compatibility with mcp-proxy 0.5.0
+
+2. **Security Validation Guard** (`src/main/kotlin/net/portswigger/mcp/KtorServerManager.kt`)
+   - Security validation is now conditional based on host configuration
+   - When host is not localhost/127.0.0.1, security checks are skipped (external access intended)
+   - Server automatically binds to `0.0.0.0` for external access
+
+### Enabling External Access
+
+In the Burp Suite MCP extension settings:
+1. Change the host from `127.0.0.1` to `0.0.0.0` (or your server's IP address)
+2. Reload the extension
+
+Remote clients can now connect via:
+```
+http://<your-server-ip>:9876
+```
+
+### Testing
+
+Use mcp-proxy to test remote connections:
+```bash
+java -jar mcp-proxy-all.jar --sse-url http://<remote-server-ip>:9876
+```
+
+Expected output: `Successfully connected to SSE server at http://<remote-server-ip>:9876`
+
+### Syncing with Upstream
+
+This fork maintains an upstream remote to stay in sync with official PortSwigger updates:
+```bash
+git fetch upstream
+git merge upstream/main
+```
 
 Extend the Paginated interface to add auto-pagination support.
