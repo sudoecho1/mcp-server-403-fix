@@ -41,7 +41,10 @@ class KtorServerManager(private val api: MontoyaApi) : ServerManager {
                     )
                 )
 
-                server = embeddedServer(Netty, port = config.port, host = config.host) {
+                val allowExternalAccess = config.host != "localhost" && config.host != "127.0.0.1"
+                val bindHost = if (allowExternalAccess) "0.0.0.0" else config.host
+
+                server = embeddedServer(Netty, port = config.port, host = bindHost) {
                     install(CORS) {
                         allowHost("localhost:${config.port}")
                         allowHost("127.0.0.1:${config.port}")
@@ -59,31 +62,33 @@ class KtorServerManager(private val api: MontoyaApi) : ServerManager {
                     }
 
                     intercept(ApplicationCallPipeline.Call) {
-                        val origin = call.request.header("Origin")
-                        val host = call.request.header("Host")
-                        val referer = call.request.header("Referer")
-                        val userAgent = call.request.header("User-Agent")
+                        if (!allowExternalAccess) {
+                            val origin = call.request.header("Origin")
+                            val host = call.request.header("Host")
+                            val referer = call.request.header("Referer")
+                            val userAgent = call.request.header("User-Agent")
 
-                        if (origin != null && !isValidOrigin(origin)) {
-                            api.logging().logToOutput("Blocked DNS rebinding attack from origin: $origin")
-                            call.respond(HttpStatusCode.Forbidden)
-                            return@intercept
-                        } else if (isBrowserRequest(userAgent)) {
-                            api.logging().logToOutput("Blocked browser request without Origin header")
-                            call.respond(HttpStatusCode.Forbidden)
-                            return@intercept
-                        }
+                            if (origin != null && !isValidOrigin(origin)) {
+                                api.logging().logToOutput("Blocked DNS rebinding attack from origin: $origin")
+                                call.respond(HttpStatusCode.Forbidden)
+                                return@intercept
+                            } else if (isBrowserRequest(userAgent)) {
+                                api.logging().logToOutput("Blocked browser request without Origin header")
+                                call.respond(HttpStatusCode.Forbidden)
+                                return@intercept
+                            }
 
-                        if (host != null && !isValidHost(host, config.port)) {
-                            api.logging().logToOutput("Blocked DNS rebinding attack from host: $host")
-                            call.respond(HttpStatusCode.Forbidden)
-                            return@intercept
-                        }
+                            if (host != null && !isValidHost(host, config.port)) {
+                                api.logging().logToOutput("Blocked DNS rebinding attack from host: $host")
+                                call.respond(HttpStatusCode.Forbidden)
+                                return@intercept
+                            }
 
-                        if (referer != null && !isValidReferer(referer)) {
-                            api.logging().logToOutput("Blocked suspicious request from referer: $referer")
-                            call.respond(HttpStatusCode.Forbidden)
-                            return@intercept
+                            if (referer != null && !isValidReferer(referer)) {
+                                api.logging().logToOutput("Blocked suspicious request from referer: $referer")
+                                call.respond(HttpStatusCode.Forbidden)
+                                return@intercept
+                            }
                         }
 
                         call.response.header("X-Frame-Options", "DENY")
