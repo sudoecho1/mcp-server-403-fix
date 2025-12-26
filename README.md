@@ -191,7 +191,7 @@ git merge upstream/main
 
 For integrated MCP support in VS Code:
 
-1. *(Optional)* Install the [MCP Kali Extension](https://marketplace.visualstudio.com/items?itemName=kali.mcp-kali) for enhanced ease of use
+1. *(Optional)* Install the [MCP Kali Workspace Extension](https://marketplace.visualstudio.com/items?itemName=sudoecho.mcp-kali-workspace) from the VS Code Marketplace for easy setup
 2. Add the following to your VS Code MCP configuration (`.vscode/mcp.json` or via settings):
 
 ```json
